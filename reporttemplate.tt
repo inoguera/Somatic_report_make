@@ -1,0 +1,598 @@
+%%%%%%%%%%%%
+% Packages %
+%%%%%%%%%%%%
+%Document layout format
+\documentclass[pdftex,12pt,a4paper]{scrreprt}
+\usepackage{geometry}
+\geometry{a4paper,
+ left=20mm,
+ right=20mm,
+ top=15mm,
+ bottom=30mm,
+ }
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+\usepackage[toc,page,header]{appendix}
+\usepackage{ragged2e}	%Text justification
+\usepackage[utf8]{inputenc} %Coding symbols
+\usepackage{lscape}	%For horizontal pages
+%Tables
+\usepackage{pgfplotstable}
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+\usepackage{longtable}
+%Graphs
+\usepackage{graphicx}
+%Maths
+\usepackage{amsmath}
+%Table of contents
+\usepackage{booktabs}
+\usepackage[bookmarks,%
+			%hidelinks,%
+            breaklinks,%
+            backref=false,%
+            pdfauthor=I.Noguera]%
+            {hyperref}
+\usepackage{times}
+\usepackage[varg]{txfonts}
+\usepackage{latexsym}
+\usepackage{tocloft}	%dots for chapters in tableofcontents
+\renewcommand\cftchapdotsep{\cftdotsep}
+\renewcommand\cftchapleader{\cftdotfill{\cftchapdotsep}}
+\setlength\cftaftertoctitleskip{0pt}
+\setlength\cftafterloftitleskip{0pt}
+\setlength\cftafterlottitleskip{0pt}
+%Page numbering
+\pagenumbering{arabic}
+\usepackage{lastpage}
+\usepackage{fancyhdr} 
+\pagestyle{fancy}
+\fancyhf{}
+\cfoot{Page \thepage~of \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyfoot[C]{Page \thepage\ of \pageref{LastPage}}%
+  \renewcommand{\headrulewidth}{0pt}% Line at the header invisible
+  \renewcommand{\footrulewidth}{0.4pt}% Line at the footer visible
+}
+%Sweave
+\usepackage[nogin]{Sweave}	%nogin option fixes graphics scale bug
+\SweaveOpts{prefix.string=Figures/Figure} %Figures placed at subdirect "Figures" and named as "Figure"
+\usepackage{rotating}
+\usepackage{grffile}	% images/figures filename extension
+%Methodology
+\usepackage{enumitem}
+\usepackage{calc}
+\newlength{\mylongest}
+\setlength{\mylongest}{\widthof{The longest label I will need}}
+\addtolength{\mylongest}{\labelsep}
+\SetLabelAlign{CenterWithParen}{\makebox[\mylongest]{#1}}
+%Bibliography
+\usepackage{natbib}
+\citestyle{nature}
+\usepackage{nameref}
+%%%%%%%%%%%%
+% DOCUMENT %
+%%%%%%%%%%%%
+\begin{document}
+
+%%%%%%%%%%%
+%Title page
+%%%%%%%%%%%
+\begin{titlepage}
+\begin{tabbing}
+\hspace{5em} \= \hspace{6em} \= $N$ = Yet another statement \= \kill
+\textbf{cnag} \> \> \> \emph{centre nacional d'anàlisi genòmica} \\
+ \> \> \> \emph{centro nacional de análisi genómico}\\[2cm]
+\end{tabbing}
+
+\begin{center}
+\HRule \\[0.4cm]{ \huge \bfseries [% title %] \\[0.4cm] } \HRule \\[1cm]
+\textsc{\Large{Control/Tumor analysis type}}\\[0.5cm]
+\textsc{\Large \emph{Variant calling report}}\\[1.5cm]
+
+\begin{tabular}{l r}
+[% IF project && project.size %] 
+\textbf{Project:} & \textit{[% project %]} \\
+[% END %]
+\textbf{Date Performed:} & {\today} \\ % Date the experiment was performed
+
+\end{tabular}
+\\[3cm]
+\includegraphics[width=0.15\textwidth]{[% logo %]}~\\[1cm]
+\vfill
+% Bottom of the page
+\end{center}
+\end{titlepage}
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%
+%Table of contents
+%%%%%%%%%%%%%%%%%%%
+\setlength{\parskip}{0.4ex plus0.2ex minus0.2ex} % For a more compact index layout 
+\tableofcontents               	% Table of contents
+\thispagestyle{empty}
+\listoftables                	% List of tables
+\listoffigures   			 	% List of figure
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%All variants summary table
+%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{All variants summary}
+\section{Variant calling summary table}
+Summary table of all variants (germline and somatic) called. A variant was annotated if the alternative allele was present in the sample's genotype. When both control and tumor genotype contained it, it was also annotated as shared. Variant type (SNP or INDEL) and its predicted biological impact were also reported. For more information about variant calling see attached appendix A.
+
+
+\pgfplotstableset{
+begin table=\begin{longtable},
+end table=\end{longtable}
+}
+
+\pgfplotstabletypeset[
+col sep=tab,header=true,
+columns/Type/.style={column name= ,string type, string replace={-}{}},
+columns/All/.style={string type, string replace={-}{}},
+columns/Control/.style={string type, string replace={-}{}},
+columns/Tumor/.style={string type, string replace={-}{}},
+columns/Shared/.style={string type, string replace={-}{}},
+empty cells with={ }, % replace empty cells with '--'
+every head row/.style={before row=\toprule, after row=\midrule\endhead}, 
+every last row/.style={after row=\toprule\caption[Summary table from all identified variants called. Mutation type and effect impact are also shown. See appendix A for more information.}},
+every row 3 column 0/.style={string replace={Effectimpact}{Effect impact},@cell content={\textbf{#1Effect impact}}},
+every row no 3/.style={before row=\midrule},
+]{[% allsummarytable %]}
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%Somatic variants candidates
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Somatic variants}
+Number of somatic variants called as a function of their Fisher's Exact Test p-value (equal to or less than). Variants present in Catalogue Of Somatic Mutations In Cancer (COSMIC) database were also reported. See \emph{Somatic variants filtering} on appendix A for more details.
+\begin{flushleft}
+<<results=tex,echo=FALSE>>=
+library(ggplot2)
+library(gtools)
+library("Hmisc")
+library("xtable")
+candidates <-read.table("[% somaticcandidates %]", header=T, sep="\t");
+candidates$p.value <- as.character(candidates$p.value);
+candidates <- candidates[order(candidates$dbCOSMIC, decreasing = TRUE),];
+bold.header <- function(x) {h <- paste('\\textbf{',x,'}', sep ='');
+                            h;
+};
+print(xtable(candidates,caption = "Somatic variants by Fisher's Exact Test p-value."), include.rownames=FALSE, sanitize.colnames.function =  bold.header);
+@
+\end{flushleft}
+\clearpage
+
+%%%%%%%%%%%%%%%%%%%%%
+% FOR EACH FP-VALUE %
+%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Summary of somatic variants}
+
+[% IF fpvalues && fpvalues.size %]
+	[% FOREACH value IN fpvalueshash.keys.sort %]
+		\section{Somatic variants p-value: [% value %]}
+		     
+	        		
+	        	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+				% Somatic variants summary table %
+				%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+				\subsection {Summary table of identified somatic variants}
+			   		
+				\pgfplotstableread{Tables/summarytable[% value %].txt}{\loadeddataone}
+				\pgfplotstabletypeset[
+					col sep=tab,header=true,
+					columns/Type/.style={column name= ,string type, string replace={-}{}},
+					columns/All/.style={string type, string replace={-}{}},
+					columns/Control/.style={string type, string replace={-}{}},
+					columns/Tumor/.style={string type, string replace={-}{}},
+					columns/Shared/.style={string type, string replace={-}{}},
+					empty cells with={ }, % replace empty cells
+					every head row/.style={before row=\toprule, after row=\midrule\endhead}, 
+					every last row/.style={after row=\toprule \caption[Somatic variants summary]{Summary table for somatic variants with a p-value equal to or less than [% value %]. Mutation type and effect impact are shown. See appendix A for more information.}},
+					every row 3 column 0/.style={string replace={Effectimpact}{Effect impact},@cell content={\textbf{#1Effect impact}}},
+					every row no 2/.style={after row=\midrule},
+					]{\loadeddataone}
+				\clearpage
+
+			
+\begin{flushleft}
+<<echo=FALSE>>=
+variants <-read.table("Tables/mainstatistics[% value %].txt", header=T, sep="\t");
+foo <- (do.call('rbind', strsplit(as.character(variants$Control.AC),',',fixed=TRUE)));
+variants$Control_Ref_AC  <- (foo[,1]);
+variants$Control_Alt_AC <- (foo[,2]);
+variants$Control.AC <- NULL;
+foo <- (do.call('rbind', strsplit(as.character(variants$Tumor.AC),',',fixed=TRUE)));
+variants$Tumor_Ref_AC  <- (foo[,1]);
+variants$Tumor_Alt_AC <- (foo[,2]);
+variants$Tumor.AC <- NULL;
+@
+
+					%%%%%%%%%%%
+					%Coverage %
+					%%%%%%%%%%%
+					\subsection{Coverage}
+					\begin{flushright}{\small FP value: \textbf{[% value %]}}\end{flushright}
+ 					\begin{figure}[ht]
+ 					\centering
+<<fig=TRUE, echo=FALSE, png=TRUE,height=5, width=5>>=
+df <- variants[,c(7,8,9)]
+par(mfrow=c(1,2))
+plot(df$Control.DP, df$Tumor.DP, main="Coverage", xlab="Control depth", ylab="Tumor depth ");
+abline(lm(df$Tumor.DP ~ df$Control.DP), col="red");
+plot((df$Control.DP+df$Tumor.DP),df$FP.value, main="P-value vs coverage", ylab="p-value", xlab="Coverage (reads)");
+@
+					\caption[Coverage distribution]{Left: Composition of coverage between normal and tumor samples. Right: Fisher-test p-value as a function of coverage.}
+					\end{figure}
+					\end{flushleft}
+					\newpage
+					
+			
+			%%%%%%%%%%%%%%%%%%
+			% Genotype table %
+			%%%%%%%%%%%%%%%%%%
+			
+				\subsection{Genotype}
+				\begin{flushright}{\small FP value: \textbf{[% value %]}}\end{flushright}
+				Genotype assigned to identified somatic variants. Genotype calling was performed by Samtools. See \emph{Genotype calling} in appendix A for more information.
+
+				\pgfplotstableread{Tables/zygosity.[% value %].txt}{\loadeddatazygosity}
+				\pgfplotstabletypeset[
+				col sep=tab,header=true,
+				columns/Genotype/.style={string type},
+				columns/Control/.style={string type},
+				columns/Tumor/.style={string type},
+				columns/Shared/.style={string type},
+				every head row/.style={before row=\toprule, after row=\midrule\endhead}, 
+				every last row/.style={after row=\toprule\caption[Zygosity]{Summary of genotypes called. An allele is annotated as "reference" when its sequence is the same in the reference genome. Otherwise it is annotated as "alternative" or "variant"}},
+				]{\loadeddatazygosity}
+
+				\begin{figure}[ht]
+				\centering 
+<<fig=TRUE, echo=FALSE>>=
+maxy <- max(c(density(variants$Control.GQ)$y,density(variants$Tumor.GQ)$y))
+plot(density(variants$Control.GQ), col="blue", main="Genotype quality", ylim=c(0,maxy),xlab="Quality (Phred score)")
+lines(density(variants$Tumor.GQ), col="red")
+legend("topleft", c("control","tumor"), col = c("blue", "red"), cex=0.8,  bty='n', lwd = 1)
+@
+				\caption[Genotype quality]{Control and tumor genotype quality.}
+				\end{figure}
+
+			%%%%%%%%%%%%%%%%%%%%%%%
+			% Genotype GQ graphic %
+			%%%%%%%%%%%%%%%%%%%%%%%	
+				\begin{figure}[ht]
+				\centering
+<<fig=TRUE, echo=FALSE,png=TRUE>>=
+gmaf <-read.table("Tables/gmaf.[% value %].txt", header=T, sep="\t");
+par(oma=c(3,0,0,0), mfrow=c(1,2), xpd=NA)
+plot(x=variants$Control_Ref_AC, y=variants$Control_Alt_AC, type="n", xlab="Ref AC (reads)", ylab="Alt AC (reads)", main="Control")
+points(variants[variants[,3]=="0/0",12], variants[variants[,3]=="0/0",13], col = ifelse(variants[,11]<50,'lightcoral','red3'),pch=19)
+points(variants[variants[,3]=="0/1",12], variants[variants[,3]=="0/1",13], col = ifelse(variants[,11]<50,'lightblue1','midnightblue'),pch=19)
+points(variants[variants[,3]=="1/1",12], variants[variants[,3]=="1/1",13], col = ifelse(variants[,11]<50,'lightgreen','green4'),pch=19)
+plot(x=variants$Tumor_Ref_AC, y=variants$Tumor_Alt_AC, type="n", xlab="Ref AC (reads)", ylab="Alt AC (reads)", main="Tumor")
+points(variants[variants[,4]=="0/0",14], variants[variants[,4]=="0/0",15], col = ifelse(variants[,11]<50,'lightcoral','red3'),pch=19)
+points(variants[variants[,4]=="0/1",14], variants[variants[,4]=="0/1",15], col = ifelse(variants[,11]<50,'lightblue1','midnightblue'),pch=19)
+points(variants[variants[,4]=="1/1",14], variants[variants[,4]=="1/1",15], col = ifelse(variants[,11]<50,'lightgreen','green4'),pch=19)
+title("Allele count (AC)", outer=TRUE, cex=0.3, line=-2.2) 
+legend(par("usr")[1],par("usr")[3],pch = c(1, 1, 1), c("0/0","0/1","1/1"), col = c("red", "blue","green"),  title="Genotype", cex=0.8,  bty='n',xjust=1.5, yjust=1.5) 
+@
+				\caption[Allele counts distribution]{Distribution of allele counts in the control and tumor samples. Samples are colored based on their genotype quality.Genotypes with higher quality are represented by a higher color intensity.}
+				\end{figure}
+				\clearpage
+				\subsection{Allele frequency}
+				\begin{flushright}{\small FP value: \textbf{[% value %]}}\end{flushright}
+				\begin{figure}[ht]
+				\centering
+<<fig=TRUE, echo=FALSE, png=TRUE>>=
+VAFcontrol0_0 <- variants[variants[,3]=="0/0",5]
+VAFcontrol0_1 <- variants[variants[,3]=="0/1",5]
+VAFcontrol1_1 <- variants[variants[,3]=="1/1",5]
+VAFtumor0_0 <- variants[variants[,4]=="0/0",6]
+VAFtumor0_1 <- variants[variants[,4]=="0/1",6]
+VAFtumor1_1 <- variants[variants[,4]=="1/1",6]
+if (length(VAFcontrol0_0)<2) {
+    VAFcontrol0_0 <- c(0,0);}
+if (length(VAFcontrol0_1)<2){
+    VAFcontrol0_1 <- c(0,0);}
+if (length(VAFcontrol1_1)<2){
+    VAFcontrol1_1 <- c(0,0);}
+if (length(VAFtumor0_0)<2) {
+    VAFtumor0_0 <- c(0,0);}
+if (length(VAFtumor0_1)<2){
+    VAFtumor0_1 <- c(0,0);}
+if (length(VAFtumor1_1)<2){
+    VAFtumor1_1 <- c(0,0);}
+maxycontrol <- max(c(density(VAFcontrol0_0)$y,density(VAFcontrol0_1)$y, density(VAFcontrol1_1)$y))
+maxytumor <- max(c(density(VAFtumor0_0)$y,density(VAFtumor0_1)$y, density(VAFtumor1_1)$y))
+if (maxycontrol<maxytumor) {
+    maxy2 <- maxytumor;}else {
+        maxy2 <- maxycontrol;}
+
+if(length(VAFcontrol0_0)>=2 && length(VAFcontrol0_1)>=2 && length(VAFcontrol1_1)>=2) {
+    par(mfrow=c(1,2))
+    
+    plot (density(VAFcontrol0_0), type="n", xlim=c(0,1), main="", ylim=c(0,maxy2), xlab="Frequency",);
+    lines(density(VAFcontrol0_0), col="red");
+    lines (density(VAFcontrol0_1), col="green");
+    lines (density(VAFcontrol1_1), col="purple");
+    title(main="VAF Control", cex = 0.3, line = 0.4);
+    legend("topright", c("0/0","0/1","1/1"), col = c("red", "green","purple"), lwd = 1,  title="Genotype", cex=0.8,  bty='n');}else {
+        par(mfrow=c(1,2))
+        if (length(VAFcontrol0_0)<2) {
+            VAFcontrol0_0 <- c(0,0);}
+        if (length(VAFcontrol0_1)<2){
+            VAFcontrol0_1 <- c(0,0);}
+        if (length(VAFcontrol1_1)<2){
+            VAFcontrol1_1 <- c(0,0);}
+        plot (density(VAFcontrol0_0), type="n", xlim=c(0,1), main="", ylim=c(0,maxy2), xlab="Frequency");
+        lines(density(VAFcontrol0_0), col="red");
+        lines (density(VAFcontrol0_1), col="green");
+        lines (density(VAFcontrol1_1), col="purple");
+        title(main="VAF Control", cex = 0.3, line = 0.4);
+        legend("topright", c("0/0","0/1","1/1"), col = c("red", "green","purple"), lwd = 1,  title="Genotype", cex=0.8,  bty='n');}
+if(length(VAFtumor0_0)>=2 && length(VAFtumor0_1)>=2 && length(VAFtumor1_1)>=2) {
+    plot (density(VAFtumor0_0), type="n", xlim=c(0,1), main="", ylim=c(0,maxy2), xlab="Frequency");
+    lines(density(VAFtumor0_0), col="red");
+    lines (density(VAFtumor0_1), col="green");
+    lines (density(VAFtumor1_1), col="purple");
+    title(main="VAF Tumor", cex = 0.3, line = 0.4);
+    legend("topright", c("0/0","0/1","1/1"), col = c("red", "green","purple"), lwd = 1,  title="Genotype", cex=0.8,  bty='n');}else {
+        if (length(VAFtumor0_0)<2) {
+            VAFtumor0_0 <- c(0,0);}
+        if (length(VAFtumor0_1)<2){
+            VAFtumor0_1 <- c(0,0);}
+        if (length(VAFtumor1_1)<2){
+            VAFtumor1_1 <- c(0,0);}
+        plot (density(VAFtumor0_0), type="n", xlim=c(0,1), main="", ylim=c(0,maxy2), xlab="Frequency");
+        lines(density(VAFtumor0_0), col="red");
+        lines (density(VAFtumor0_1), col="green");
+        lines (density(VAFtumor1_1), col="purple");
+        title(main="VAF Tumor", cex = 0.3, line = 0.4);
+        legend("topright", c("0/0","0/1","1/1"), col = c("red", "green","purple"), lwd = 1,  title="Genotype", cex=0.8,  bty='n');}
+@
+				\caption[Variant allele frequency distribution]{Variant allele frequency distribution in control and tumor samples based on their genotypes.}
+				\end{figure}
+
+				\begin{figure}[ht]
+				\centering
+<<AF,fig=TRUE, echo=FALSE,png=TRUE>>=
+par(mfrow=c(1,2))
+hist(abs(variants$Tumor.VAF - variants$Control.VAF), breaks=100, main="Absolute VAF diff", xlab="VAF diff")
+plot((variants$Control.VAF - variants$Tumor.VAF), -log10(variants$FP.value), xlab="VAF diff", ylab="-log10 (p-value)", main="VAF diff vs p-value")
+@
+				\caption[Variant allele frequency differences] {Left: Differences in the variant allele frequency (VAF) distrubtion.\\Right: Differences in the variant allele frequency (VAF) as a function of p-value.}
+				\end{figure}
+
+				\begin{figure}[ht]
+				\centering
+<<fig=TRUE, echo=FALSE, height=5, width=5>>=
+par(mfrow=c(1,1))
+if (length(gmaf$GMAF)<2){
+    gmaf[1,] <- 0;
+plot(1, type="n", ylim=c(0,1), xlim=c(0,0.5), xlab="GMAF", ylab="Number of variants",yaxt="n", main="Global Minor Allele Frequency\n (GMAF)")
+axis(2, at=0, lab="0")
+}
+if (length(gmaf$GMAF)>2){
+    hist(gmaf$GMAF, breaks=50, col=c(rep('lightgreen',5),rep('white',45)), xlim=c(0,0.5), main="Global Minor Allele Frequency\n(GMAF)", xlab="GMAF")
+    legend("topright", pch=c(0,0), c("Common variants","Rare variants"), col = c("black","green"), cex=0.7,  bty='n')
+}
+@
+			\caption[GMAF]{Global Minor Allele Frequency in the 1000 genomes project. Variants with a GMAF frequency equal to or less than 0.05 are considered rare variants.}
+			\end{figure}
+			\clearpage
+
+			\subsection{Mutation spectrum}
+			 This table shows the number of times a particular substitution was observed. E.g: A: C, means a change from an "A" to a "C". INDELs are also reported.
+			\begin{flushright}{\small FP value: \textbf{[% value %]}}\end{flushright}
+
+<<results=tex,echo=FALSE>>=
+bold.header <- function(x) {h <- paste('\\textbf{',x,'}', sep ='');
+                             h;
+};
+mytable <- read.table("Tables/mutation.spectrum.[% value %].txt",header= T, sep="\t",row.names=NULL)
+mytable <- mytable[order(mytable$Number),c(1,2)];
+print(xtable(mytable,caption = "Mutation spectrum."), include.rownames=FALSE, sanitize.colnames.function =  bold.header);
+@
+
+			\begin{figure}[hbtp]
+			\centering
+<<fig=TRUE, echo=FALSE, height=5, width=5>>=
+source("[% rainfallscript %]");
+rainfall("Tables/[% rainfallplot %].fp[% value %].vcf",ftype='vcf',device='screen',pleg=T,main="Intermutation distance")
+@
+			\caption[Mutation spectrum]{Intermutation distances.}
+			\end{figure}
+			\clearpage
+	[% END %]
+[% END %]
+
+			\chapter{Tumor purity}
+<<echo=FALSE>>=
+variants <-read.table("Tables/mainstatistics1.txt", header=T, sep="\t");
+tumorpuritymean <- mean(variants[variants[,4]=="0/1",6])
+controlpuritymean <- mean(variants[variants[,3]=="0/1",5])
+tumorpuritymean <- tumorpuritymean/controlpuritymean
+tumorpuritysd <- sd(variants[variants[,4]=="0/1",6])
+controlpuritysd <- sd(variants[variants[,3]=="0/1",5])
+tumorpuritysd <- (tumorpuritysd+controlpuritysd)/2
+prova <- aggregate(. ~ Chr, data=(variants[variants[,c(3,4)]=="0/1",c(1,5,6)]), FUN=mean)
+puresa <- data.frame(prova)
+puresa$Purity <- puresa[,3] / puresa[,2]
+puresa <- (do.call(data.frame,lapply(puresa, function(x) replace(x, is.infinite(x),NA))))
+puresa[is.na(puresa)] <- 0
+puresa = puresa[c(-23,-24,-25),]
+sd <- aggregate(. ~ Chr, data=(variants[variants[,c(3,4)]=="0/1",c(1,5,6)]), FUN="sd")
+sd = sd[c(-23,-24,-25),]
+sd$mean <- (sd$Control.VAF+sd$Tumor.VAF)/2
+puresa$sd <- sd$mean
+puresa <- (do.call(data.frame,lapply(puresa, function(x) replace(x, is.infinite(x),NA))))
+puresa[is.na(puresa)] <- 0
+tumorpuritymean <- mean(puresa$Purity)
+tumorpuritysd <- mean(puresa$sd)
+par(mfrow=c(1,1),las=2)
+plot(as.numeric(puresa$Chr), puresa$Purity, type="n", xaxt = "n", ylim=c(0,1), main="Tumor purity", xlab="Chromosome", ylab="Tumor purity (%)")
+errbar(as.numeric(puresa$Chr), puresa$Purity, puresa$Purity+puresa$sd, puresa$Purity-puresa$sd, add=T)
+axis(1, at=1:length(levels(puresa$Chr)), labels=levels(puresa$Chr), cex.axis=0.8)
+@
+			Tumor purity mean:
+<<echo=FALSE, result=TRUE>>=
+tumorpuritymean
+@
+			Tumor purity standard deviation:
+<<echo=FALSE, result=TRUE>>=			
+tumorpuritysd
+@
+			\begin{figure}[ht]
+			\centering
+<<fig=TRUE, echo=FALSE>>=
+par(mfrow=c(1,1),las=2)
+plot(as.numeric(puresa$Chr), puresa$Purity, type="n", xaxt = "n", ylim=c(0,1), main="Tumor purity", xlab="Chromosome", ylab="Tumor purity")
+errbar(as.numeric(puresa$Chr), puresa$Purity, puresa$Purity+puresa$sd, puresa$Purity-puresa$sd, add=T)
+axis(1, at=1:length(levels(puresa$Chr)), labels=levels(puresa$Chr), cex.axis=0.8)
+@
+		\caption[Tumor purity]{Estimation of mean purity ofr each autosomic chromosome with its variabity observed (error bars).}
+		\end{figure}
+		\clearpage
+
+		%%%%%%%
+		%CNV
+		%%%%%%%
+		[% IF cnv_analysis && cnv_analysis.size %] 
+		\chapter{Copy-Number Variation}
+		\begin{flushright}{\small FP value: \textbf{[% value %]}}\end{flushright}
+		\begin{figure}[hbtp]
+		\centering
+		\includegraphics[scale=0.4]{[% cnv_analysis %]}
+		\caption[Copy-Number variation]{Blue points are losses, red gains, and green normal copy number.}
+		\end{figure}
+		\clearpage
+		[% END %]
+	
+
+%%%%%%%%%%%%%%
+% METHODOLOGY %
+%%%%%%%%%%%%%%
+[% IF methods && methods.size %]
+\appendix
+\chapter{Methodology}
+\label{methods}
+\section{Variant concept}
+A variant is defined as a difference between a genome and a reference genome. It is a standard procedure to compare sample sequences against the corresponding reference genome. \cite{Gonzalez-Perez2013} 
+\section{All variants filters}
+\label{filters}
+All variants reported, somatic and non-somatic, passed at least the following filters:
+\begin{itemize}
+\item[-] \textbf{Coverage}: reached a minimum read depth per sample of 10 reads.
+\end{itemize}
+
+\section{Variant Calling}
+\label{variantcalling}
+SNP and INDEL calling was performed by SAMtools/BCFtools.\cite{Samtools} In this control/tumor experiments, control and tumor genome samples were compared against the \emph{Genome Reference Consortium Human Build 37 (GRCh37)}. Positions in the sample genome that differed from the reference genome were called genomic variants or just variants.
+
+Variants were categorized as follows:
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline 
+\textbf{Type} & \textbf{Meaning} & \textbf{Example} \\ 
+\hline 
+SNP & Single-Nucleotide Polymorphism & Reference = 'A', Sample = 'C' \\ 
+\hline 
+INDEL & Insertion-deletion polymorphism  & Reference = 'A', Sample = 'CTAA' \\ 
+\hline 
+\end{tabular}
+\caption{Variant type and meaning.} 
+\end{table}
+
+\begin{flushleft}
+In control/tumor experiments the tumor and its matched control sample are considered together.\cite{Kim2013a} Therefore, the variant status was determined by the joint status in control-tumor sequence pairs:\\
+\begin{description}
+  \item[Germline] \hfill \\The genotype of the control and tumor sample was the same, i.e. an inherited variant.
+  \item[Somatic] \hfill \\The genotype of the control and tumor sample was different, i.e. a non-inherited variant.
+\end{description}
+
+\section{Genotype calling}
+\label{genotype}
+For a diploid genotype, this can be represented as:
+\end{flushleft}
+\begin{description}[align=CenterWithParen]
+  \item[0/0] homozygous reference (Ref/Ref)
+  \item[0/1] reference/alternative (Ref/Alt)
+  \item[1/1] homozygous alternative (Alt/Alt)
+\end{description}
+
+Sample genotypes were called by Samtools/BCFtools, which also provide a likelihood estimate for the genotype predicted.\cite{Samtools}
+
+\section{Somatic variants filtering}
+\label{candidates}
+As explained in the \nameref{variantcalling} section, a \textbf{somatic variant} was called when the genotype of the variant changed between the control and the tumor sample (independently of which sample was carriying the alternative allele). This means that only the following genotype combinations were considered when calling a variant as somatic:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline 
+\multicolumn{2}{|c|}{\textbf{Genotype}} \\
+\hline
+Control & Tumor \\ 
+\hline 
+0/0 & 0/1 \\ 
+\hline 
+0/0 & 1/1 \\ 
+\hline 
+0/1 & 0/0 \\ 
+\hline 
+0/1 & 1/1 \\ 
+\hline 
+1/1 & 0/1 \\ 
+\hline 
+1/1 & 0/0 \\ 
+\hline
+\end{tabular}
+	\caption{Genotype combinations in which a variant will be called as somatic.}
+	\label{tab:genotypetable}
+\end{table}
+
+When a variant met one of these possible genotype combinations, a Fisher Test was performed by SAMtools to compare the variant position between the samples. Samtools calculates the resulting p-value using the read counts supporting the reference and variant alleles. This allows the definition of a threshold p-value below which we consider a Somatic variant to be true.
+
+\section{Effect impact}
+The biological effect of a variant was predicted by SNPEff.\cite{snpeff} SNPEff categorizes the effect by 'impact': High, Moderate, Low, Modifier. These are pre-defined categories to help users to find the most significant variants. For a variant with more than one transcript affected, only the effect having the highest impact was reported. This was done intentionally for the sake of brevity, in a 'less is more' spirit.  See SNPEff documentation for more information.
+
+\section{Catalogue Of Somatic Mutations In Cancer (COSMIC) database}
+All filtered somatic variants were annotated by SnpSift.\cite{snpeff} Annotation focused on variants already annotated in the Catalogue Of Somatic Mutations In Cancer (COSMIC) database; which is a collection of somatic mutations found in human cancer.\cite{Cosmic}\\
+
+\section{Coverage}
+The coverage level for the contronl and tumor sample of a variant was estimated using reference and alternative allele counts (reads for each allele).\\
+\begin{equation*}
+  Coverage_{sample} = \text{Ref allele counts}_{sample} + \text{Alt allele counts}_{sample}
+\end{equation*}\\
+For example, in the case of a variant in which the control sample has 10 reads for the reference allele and 2 for the alternative, its coverage will be 12 reads, and the same if done for the tumor sample.
+\section{Allele frequency}
+Reference allele and tumor allele frequency were also calculated using allele counts as follows:\\
+\begin{align*}
+   \text{Ref  allele frequency}_{sample} = \frac{\text{Ref allele counts}_{sample}}{\text{Ref allele counts}_{sample} + \text{Alt allele counts}_{sample}}
+\end{align*}\\
+\begin{align*}
+   \text{Alt  allele frequency}_{sample} = \frac{\text{Alt allele counts}_{sample}}{\text{Ref allele counts}_{sample} + \text{Alt allele counts}_{sample}}
+\end{align*}\\
+\section{Global Minor Allele Frequency (GMAF)}
+GMAF is the minor allele frequency calculated from individuals included in the May 2011 release of the 1000 Genomes project. If the 1000 Genomes project did not report frequency data for a variant, it didn't appear in the vcf file.\cite{1000genomes}\\
+This value is provided to distinguish common polymorphism from rare variants. Moreover it does not specify which is the minor and which is the major allele, it could be the reference or the alternative allele.
+\section{Tumor purity}
+Tumor samples can be contaminated by 
+Tumor purity is an estimation of how much of the tumor genome sequence is not contaminated by a mixture of multiple tumor clones and normal cells. To infer the tumor purity the \emph{PurityEst} method described in Su et al., (2012) was performed.\cite{purity} It is based on the fact that a sample of only tumor cells (containing no normal tissue) should has a mean alternative frequency of 0.5 at heterozygous loci with somatic mutations. The contamination of tumor tissue with normal tissue, the level of which is sample-dependent, affects alternative allele frequencies and decreases the relative fraction of both homozygous and heterozygous somatic mutations. Therefore, if the alternative allele frequency for heterozygous loci is not close to 0.5, it means that it is likely that the tumor sample is contaminated with cells from the normal tissue. 
+\section{Copy number variation (CNV)}
+Copy-number changes reported were predicted by Control-FREEC.\cite{ControlFree} See Control-FREEC documentation for more information.
+%\section{Tumor driver candidate genes}
+\clearpage
+
+\bibliographystyle{plain}
+\bibliography{My_Collection}
+
+[% END %]
+\end{document}
